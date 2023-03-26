@@ -1,0 +1,225 @@
+embed
+<drac2>
+a = &ARGS&
+A = argparse(a)
+ch = character()
+g = load_json(get_gvar('1cd661c5-88ba-424c-ac9b-1ec7784b2580'))
+g['weapons'] += load_json(get_svar("homebrewWeapon", "[]")) 
+g['armors'] += load_json(get_svar("homebrewArmor", "[]")) 
+additionalText = ''
+text = f''' -color <color> -footer "{ctx.prefix}{ctx.alias} | "@""Adalbär#3333""'''
+if A.get('?', A.get('help', A.get('h', A.get('?')))):
+	text = f''' -title "Looks Like {name} Needs Help Understanding!"'''
+	text += f''' -desc "Wear and Tear is an __Additional__ rule that has items -Specifically Weapons and Armors- with the ability to take damage. This adds a sense of realism to the game as character's will need to do upkeep on their items as they adventure. \nItems generally take damage when you critically fail an attack, or take a critical hit yourself."'''
+	text += f''' -f "Armor Durability|Armors have a Max Durability equal to their AC. If a creature scores a critical hit against you, your armor looses one point of durability. This will still account for adamantine, as different armor gives different bonuses. These items have a Repair DC = their Max Durability"'''
+	text += f''' -f "Item Durability|Weapons have a Max Durability equal to the maximum they can roll on their dice. If the weapon is versatile or has 2 damage dice, they gain a +1 to their Max Durability. Each time you roll a natural 1 with a weapon, they take one damage. Once a weapon looses all durability, it officially brakes. These items have a Repair DC = their Max Durability"'''
+	text += f''' -f "Magical Bonuses and Other Metals|Magical items are known for being slightly difficult to make, which also makes their upkeep more difficult. In the world of Dungeons and Dragons, magical bonuses, and armors add variations to items which is why there are rules for them."'''
+	text += f''' -f "**Magical Bonus:** An item with a magical bonus gains the bonus to their HP.\nAn Example would be a +1 set of full plate. This armor would have a Maximum Durability of 19.\n**Adamantine/Mizzium:** An item made from Adamantine/Mizzium gains a +5 to it's Maximum Durability. Adamantine/Mizzium is a very strong metal, and can withstand many attacks. Those critical strikes it absorbs still damages the metal.\n**Silver:** Silver receives a -2 to durability. Silver is a weak metal, and cannot take blows, nor deliver them as often."'''
+	text += f''' -f "Durability Points (DP)|An item at less than half its maximum Durability Points (DP) is no longer use able. Armors and shields loose their armor bonus, weapons do 1d4(or 1 if already 1d4)+mod damage rather than their normal damage. An item is not destroyed until you try and use the item after it reaches 0 Durability Points (DP)."'''
+	text += f''' -f "**__Function In The Game__**|Durability is not meant to make the game suck. It's to have a character preform upkeep on their gear. They can take it to a blacksmith to have it repaired for a small fee, or use a whet stone to resharpen the edge they slammed against a rock, causing it to dent a little. Or the forge cleric can use their portable forge to repair the weapons to a professional standard."'''
+	text += f''' -f "It's Not That You Failed, or They Succeed|While it may seem like because a creature scored a critical miss, or you scored a critical miss is the reason for the damage done to your gear, however, this is not the case. These criticals are just used to determine the wear on the item, like a mile stone that makes you realize how damaged the item actually is. This is better compared to requiring you to reduce the durability every time you hit or get hit with an item. Instead, it's only the remarkable ones. These attacks like this make your character aware of the damage done to their gear."'''
+	text += f''' -f "Repairing an Item Without Tools|Repairing an item takes time, especially when you do not have the correct tools. Items like a whet stone, or carrying extra leather straps can be carried around to make sure your items still work. Using an item like this takes about 15 minutes and restores only 1 DP. You naturally use such an method when you use a skill to repair an item."'''
+	text += f''' -f "Repairing An Item With Tools|If you have a set of tools with you, you can repair an item with ease. It takes you about 15 minutes and restores 1d4 DP to the item. When you use [Smith's Tools](https://www.dndbeyond.com/equipment/smiths-tools) to repair the item, it will automatically repair the item using 1d4."'''
+	text += f''' -f "Repairing An Item With Magic|If you use a spell like [Mending](https://www.dndbeyond.com/spells/mending) to repair some gear, you take your action and restore 1d4 DP to the item. This is instant, and can help during battle. A comrades shield brakes so much it is no longer usable, so you cast mend onto it repairing it enough to continue using."'''
+	text += f''' -f "If you repair an item that has be entirely broken, it takes 5 times as long as before unless you are using magic.\nFor help with args, please do `{ctx.prefix}{ctx.alias} help args`\nFor DM information, do `{ctx.prefix}{ctx.alias} help dm`." -footer "{ctx.prefix}{ctx.alias} help | Adalbär#3333"'''
+
+	return text
+	if A.get('dm'):
+		text = f''' -title "Looks Like {name} Needs Help Understanding: DM Edition"'''
+		text += f''' -f "Adding Homebrew Items|If you use my [`!equip` alias](https://avrae.io/dashboard/workshop/6141842f0c965093d826c235/edit), you can use the homebrew items set up for that alias. You can look at the [GVAR](https://avrae.io/dashboard/gvars?lookup=1cd661c5-88ba-424c-ac9b-1ec7784b2580) for all weapons, armor and metals to reference them and add to your own server."'''
+	if A.get('args'):
+		text = f''' -title "Looks Like {name} Needs Help Understanding: Arguments Edition"'''
+		text += f''' -desc "Still Under Construction"'''
+
+if '&1&' == 'add' and A.get('add'):
+	requestedItem = A.last('i') if A.last('i') else '&2&'
+	customName = A.last('name')
+	magicalBonus = (A.last('mb',0,int))
+	requestedMetal = A.last('metal')
+	numberOfItem = A.last('n',1,int)
+	chosenMetal = None
+	for metal in g['metals']:
+		if requestedMetal and requestedMetal.lower() in metal.lower():
+			chosenMetal = metal
+			break
+	RItem = None
+	if [x for x in g['weapons'] if requestedItem and requestedItem.lower() in x.name.lower()]:
+		for weapon in g.weapons:
+			if requestedItem and requestedItem.lower() in weapon.name.lower():
+				RItem = weapon
+				break
+		durability = RItem.dice.split('d')
+		durability = int(durability[1])+1 if RItem.Versatile == 'True' else int(durability[1])*2+1 if int(durability[0]) >=2 else int(durability[1]) if int(durability[0]) == 1 else int(durability[1])
+		durability = int(magicalBonus)+(durability)
+		durability = durability+5 if chosenMetal == 'Adamantine' else durability-1 if chosenMetal == 'Silver' else durability
+		item = f'{f"{chosenMetal} " if chosenMetal else ""}{A.last("name") if A.get("name") else RItem.name}|{durability}/{durability}'
+	elif [x for x in g['armors'] if requestedItem and requestedItem.lower() in x.name.lower()]:
+		for armor in g.armors:
+			if requestedItem and requestedItem.lower() in armor.name.lower():
+				RItem = armor
+				break
+		durability = int(RItem.armorBonus)+magicalBonus
+		durability = durability+5 if chosenMetal == 'Adamantine' else durability-1 if chosenMetal == 'Silver' else durability
+		item = f'{chosenMetal+" " if chosenMetal else ""}{RItem.name}|{durability}/{durability}'
+	if not RItem:
+		armorList = str([x.name for x in g['armors']]).strip('][')
+		armorList = armorList.replace("'","")
+		weaponList = str([x.name for x in g['weapons']]).strip('][')
+		weaponList = weaponList.replace("'","")
+		text += f''' -title "Sorry {name}, but we couldn't find an item by that name."'''
+		text += f''' -desc "Try an item from the Player's Handbook, or ask your DM to add the weapon to the server's variable for homebrew weapons/armors!\nHere are the available items to pick from: "'''
+		text += f''' -f "Armors|{armorList}" -f "Weapons|{weaponList}"'''
+		return text
+	text += f''' -desc "`{item}` has been added to your equipment bag!"'''
+	bags = load_json(get('bags', '[["Equipment", {}]]'))
+	for index, bag in enumerate(bags):
+		bag, items = bag
+		if bag == "Equipment":
+			break
+	else:
+		index = len(bags)
+		bags += [["Equipment", {}]]
+		bag, items = bags[index]
+	oldValue = 0
+	if item in items:
+		oldValue = int(items.pop(item))
+	items.update({f'{item}': int(oldValue+numberOfItem)})
+	character().set_cvar('bags', dump_json(bags))
+	itemsDisplay = str(items).replace("'","").replace("{","").replace(": 1","").replace(",","\n").strip("}")
+	text += f''' -f "{bag}|{itemsDisplay}"'''
+	return text
+if '&1&' == 'repair' and A.get('repair'):
+	bags = load_json(get("bags", "[]"))
+	for index, bag in enumerate(bags):
+		bag, items = bag
+		if bag == "Equipment":
+			break
+	chosenItem = None
+	reqItem = A.last('i', '&2&')
+	for item in items:
+		if reqItem.lower() in item.lower():
+			chosenItem = item
+	if not chosenItem:
+		itemsDisplay = str(items).replace("'","").replace("{","").replace(": 1","").replace(",","\n").strip("}")
+		text += f''' -title "Sorry {name}, but you don't have an item by that name!" -desc "You do not have an item by the name of {reqItem}. Here are your current Items." -f "{bag}|{itemsDisplay}"'''
+	else:	
+		item = chosenItem.split('|')
+		itemHealth = item[1].split('/')
+		itemName = str(item[0])
+		damage=(A.join('d', '+', '').strip('+') if A.get('d') else 1)
+		itemHealthCurrent = int(itemHealth[0])
+		itemHealthMaximum = int(itemHealth[1])
+
+		# ROLL STUFF
+		adv = A.adv(boolwise=True)
+		bonus = (A.join('b', '+', '').strip('+') if A.get('b') else '')
+		DC = itemHealthMaximum
+		additionalText = ''
+		if A.get("s", A.get("skill")): 
+			tool = ([x for x,y in ch.skills if A.last("s", A.last("skill")) in x.lower()]+['perception'])[0]
+			minimum_check = A.last('mc', None, int) or (10 if ch.csettings.get("talent", False) and ch.skills[skill].prof else None)
+			r = vroll(ch.skills[tool].d20(adv, minimum_check)+('+' + bonus if bonus else ''))
+			additionalText = f''' -f "Repairing Items Without Tools|Repairing an item takes time, especially when you do not have the correct tools. Items like a whet stone, or carrying extra leather straps can be carried around to make sure your items still work. Using an item like this takes about 15 minutes and restores only 1 DP. You naturally use such an method when you use a skill to repair an item."'''
+		if A.get("t", A.get("tool")):
+			validTools = ["Alchemist's Supplies", "Brewer's Supplies", "Calligrapher's Supplies", "Carpenter's Tools", "Cartographer's Tools", "Cobbler's Tools", "Disguise Kit", "Forgery Kit", "Herbalism Kit", "Poisoner's Kit", "Cook's Utensils", "Glassblower's Tools", "Jeweler's Tools", "Leatherworker's Tools", "Mason's Tools", "Painter's Supplies", "Potter's Tools", "Smith's Tools", "Tinker's Tools", "Weaver's Tools", "Woodcarver's Tools", "Navigator's Tools", "Thieves' Tools"]
+			for tool in load_json(get_svar('serverTools',"[]")):
+				if tool.name not in validTools:
+					validTools += tool.name
+			stats = [i[0].title().replace('ofh', ' of H').replace('handling', ' Handling') for i in character().skills]
+			tool = ([x for x in validTools if A.last('t', A.last("tool")).lower() in x.lower()]+[None])[0]
+			stat = ([x for x in stats if A.last('a').lower() in x.lower()]+[None])[0]
+			err(tool+stat)
+			additionalText = f''' -f "Repairing An Item With Tools|If you have a set of tools with you, you can repair an item with ease. It takes you about 15 minutes and restores 1d4 DP to the item. When you use `Smith's Tools` to repair the item, it will repair the item using 1d4."'''
+			if not tool or not stat: # Put out the help if missing A
+				return f""" -title '{name} is trying to repair their items' -desc 'You must select a valid skill, or valid tool, attribute, and task DC in the following format:\n`{ctx.prefix}{ctx.alias} repair [-s <skill> | -t <tool> -a <attr> | -sc] [adv|dis] [-b <bonus>]`'"""
+			prof = f'+{2*proficiencyBonus} [expertise]' if (exists('eTools') and tool in eTools) else f'+{proficiencyBonus} [proficient]' if (exists('pTools') and tool in pTools) else f'[Jack of all Trades]' if ch.levels.get('Bard') >= 2 else ''
+			minimum_check = A.last('mc', None, int) or (10 if (ch.csettings.get("talent", False) or A.last('mi10')) else None)
+			r = vroll(ch.skills[stat.lower()].d20(adv, min_val=minimum_check)+(prof if prof else "")+('+' + bonus if bonus else ''))
+		if A.get('sc', A.get('spellcraft')):
+			tool = 'Spellcraft'
+			spellcraft = character().spellbook.sab if ch.spellbook.sab else int(ch.skills['arcana'])
+			minimum_check = A.last('mc', None, int) or (10 if (ch.csettings.get("talent", False) or A.last('mi10')) else None)
+			r = vroll(["1d20","2d20kh1","2d20kl1"][A.adv()]+(f"mi{minimum_check}" if minimum_check else "")+('+' + spellcraft)+('+' + bonus if bonus else ''))
+			additionalText = f''' -f "Repairing Via Magic|If you try to repair an item via mending, you must know the mending spell. You can then make a spellcheck against the items DC. On a success, your item gains 1d4 DP."'''
+		if not A.get("t", A.get("tool", A.get('a', A.get('attribute')))) or not A.get("s", A.get("skill")) or not A.get('sc'):
+			text = f""" -title '{name} is trying to repair their items' -desc 'You must select a valid skill, or valid tool, attribute, and task DC in the following format:\n`{ctx.prefix}{ctx.alias} repair [-s <skill> | -t <tool> -a <attr> | -sc] [adv|dis] [-b <bonus>]`'"""
+			return text
+		if r.total > DC:
+			restore = vroll(f'''{"1d4" if A.get('sc', A.get('spellcraft')) or A.get('tool', A.get('t')) else '1d1'}''')
+			itemHealthNew = itemHealthCurrent+restore.total if itemHealthCurrent+restore.total <= itemHealthMaximum else itemHealthMaximum
+			items.pop(chosenItem)
+			items.update({f'{itemName}|{itemHealthNew}/{itemHealthMaximum}': 1})
+			character().set_cvar('bags', dump_json(bags))
+			text = f''' -title "{name} Repairs Their {itemName}!" -f "**DC: {DC}**|{r}\n{itemName}|{itemHealthCurrent}+{restore}/{itemHealthMaximum}" -footer "Success!"'''
+			itemsDisplay = str(items).replace("'","").replace("{","").replace(": 1","").replace(",","\n").strip("}")
+			text += f''' -f "{bag}|{itemsDisplay}"'''
+			text += additionalText
+			return text
+		else:
+			text = f''' -title "{name} Tries To Repair Their {itemName}!" -f "**DC: {DC}**|{r}\n{itemName}|{itemHealthCurrent}+0/{itemHealthMaximum}" -footer "Failure!"'''
+			itemsDisplay = str(items).replace("'","").replace("{","").replace(": 1","").replace(",","\n").strip("}")
+			text += f''' -f "{bag}|{itemsDisplay}"'''
+			return text
+if '&1&' == 'damage' and A.get('damage'):
+	bags = load_json(get("bags", "[]"))
+	for index, bag in enumerate(bags):
+		bag, items = bag
+		if bag == "Equipment":
+			break
+	chosenItem = None
+	brokenItems = 0
+	reqItem = '&2&'
+	for item in items.items():
+		if reqItem.lower() in item[0].lower():
+			dpOkay=item[0].split('|')
+			dpOkay=dpOkay[1].split('/')
+			if int(dpOkay[0]) <= 0:
+				brokenItems = item[1]
+			if int(dpOkay[0]) >= 1:
+				chosenItem = item
+				break
+	if not chosenItem:
+		itemsDisplay = str(items).replace("'","").replace("{","").replace(": 1","").replace(",","\n").strip("}")
+		text += f''' -title "Sorry {name}, but you don't have an item by that name!" -desc "You do not have an item by the name of {reqItem}. Here are your current Items." -f "{bag}|{itemsDisplay}"'''
+	else:	
+		numberOfItem = chosenItem[1]
+		chosenItem = chosenItem[0]
+		item = chosenItem.split('|')
+		itemHealth = item[1].split('/')
+		itemName = str(item[0])
+		damage=(A.join('d', '+', '').strip('+') if A.get('d') else 1)
+		itemHealthCurrent = int(itemHealth[0])
+		itemHealthNew = int(itemHealth[0])-int(damage)
+		itemHealthMaximum = int(itemHealth[1])
+		items.pop(chosenItem)
+		brokenItems = int(brokenItems) + 1
+		if itemHealthNew <= 0:
+			items.update({f'{itemName}|0/{itemHealthMaximum}': int(brokenItems)})
+		elif itemHealthNew >= 1:
+			items.update({f'{itemName}|{itemHealthNew}/{itemHealthMaximum}': 1})
+		if numberOfItem >= 1:
+			items.update({f'{itemName}|{itemHealth[0]}/{itemHealthMaximum}': numberOfItem-1})
+		for item in items.items():
+			if item[1] == 0:
+				items.pop(item[0])
+				break
+		listItems = list(items.items())
+		listItems.sort(key=lambda x: x[0].split('|')[1].split('/')[0])
+		items = dict(listItems)
+		character().set_cvar('bags', dump_json(bags))
+		text = f''' -title "{name}'s {itemName} Takes Damage!" -desc "{itemName}|{itemHealthCurrent}-{damage}/{itemHealthMaximum}"'''
+		itemsDisplay = str(items).replace("'","").replace("{","").replace(": 1","").replace(",","\n").strip("}")
+		text += f''' -f "{bag}|{itemsDisplay}"'''
+	return text
+if not a or '&1&' == 'list' and A.get('list') or '&1&' == 'display' and A.get('display'):
+	bags = load_json(get("bags", "[]"))
+	for index, bag in enumerate(bags):
+		bag, items = bag
+		if bag == "Equipment":
+			break
+	itemsDisplay = str(items).replace("'","").replace("{","").replace(": 1","").replace(",","\n").strip("}")
+	text = f''' -title "{name} Checks Their Equipment" -f "{bag}|{itemsDisplay}"'''
+	return text
+text += additionalText
+return text
+</drac2>

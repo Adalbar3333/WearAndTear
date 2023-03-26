@@ -1,0 +1,162 @@
+multiline
+<drac2>
+a = &ARGS&
+A = argparse(a)
+ch = character()
+c = combat()
+
+if not ctx.guild:
+	text = f''' -title "Woah, Woah! This is a Guild Alias!"'''
+	text += f''' -desc "Sorry, but this alias can only be used in servers. You'll need to go to a server to use the alias since it uses the initave function. In addition, this function of this alias is to allow others to repair your equipment. So, hop into a sever, and run `{ctx.prefix}{ctx.alias} external` again!"'''
+	return f'''!embed {text}'''
+
+if not c:
+	text = f''' -title "{name} Enters a Forge"'''
+	text += f''' -desc "This will allow you to begin to repair other people's items. You can utilize the following commands to achieve such a thing:"'''
+	text += f''' -f "Adding Items to be Fixed|`{ctx.prefix}{ctx.alias} external add` adds all items from your equipment bag that are set up to be fix-able to the initiative to be fixed."'''
+	text += f''' -f "Regaining Your Items|`{ctx.prefix}{ctx.alias} external return` will edit your equipment, updating the old items."'''
+	text += f''' -f "Repairing Items|`!wat external repair` allows you to repair an item. You do not need to be in the initiative. This uses the same rules a `{ctx.prefix}{ctx.alias} repair` with the added `-t` argument for who's items you will be repairing."'''
+	return f'''!i begin -name "The Forge"\n!i join\n!embed {text}'''
+if c:
+	if not A.get('repair', A.get('r', A.get('add', A.get('return', A.get('retrieve'))))):
+		text = f''' -title "{name} Enters a Forge"'''
+		text += f''' -desc "This will allow you to begin to repair other people's items. You can utilize the following commands to achieve such a thing:"'''
+		text += f''' -f "Adding Items to be Fixed|`{ctx.prefix}{ctx.alias} external add` adds all items from your equipment bag that are set up to be fix-able to the initiative to be fixed."'''
+		text += f''' -f "Regaining Your Items|`{ctx.prefix}{ctx.alias} external return` will edit your equipment, updating the old items."'''
+		text += f''' -f "Repairing Items|`!wat external repair` allows you to repair an item. You do not need to be in the initiative. This uses the same rules a `{ctx.prefix}{ctx.alias} repair` with the added `-t` argument for who's items you will be repairing."'''
+		if c.me:
+			return f'!embed {text}'
+		else:
+			return f'!i join \n!embed {text}'
+	if A.get('add'):
+		C = c.me 
+		if not c.me:
+			return err(f'You are not apart of the initiative. Please join via `{ctx.prefix}i join`')
+		bags = load_json(get("bags", "[]"))
+		for index, bag in enumerate(bags):
+			bag, items = bag
+			if bag == "Equipment":
+				break
+		equipment = load_json('[]')
+		remove = load_json('[]')
+		for item in items:
+			if "|" in item:
+				remove.append(item)
+				equipment += ({f'{item}': 1}) 
+		for thing in remove:
+			items.pop(thing)
+			items.update("")
+		character().set_cvar('bags', dump_json(bags))
+		C.set_note(f'{dump_json(equipment)}')
+		text = f''' -title "{name} Has Requested Service"'''
+		text += f''' -desc "{name} has made their gear available for others to work on."'''
+		equipmentDisp = ''
+		for item in equipment:
+			equipmentDisp += f'''{item}\n'''
+		text += f''' -f "Added Items|{equipmentDisp}"'''
+		return f'''!embed {text}'''
+	if A.get('return', A.get('retrieve')):
+		C = c.me
+		bags = load_json(get("bags", "[]"))
+		for index, bag in enumerate(bags):
+			bag, items = bag
+			if bag == "Equipment":
+				break
+		yourStuff = load_json(C.note)
+		itemDisp = ''
+		for item in yourStuff:
+			items.update({f"{item}":1})
+			itemDisp += f'''{item}\n'''
+		character().set_cvar('bags', dump_json(bags))
+		C.set_note('')
+		text = f''' -title "{name} Retrieves their Items!"'''
+		text += f''' -desc "You have retrieved your items from the forge."'''
+		text += f''' -f "Item's Retrieved|{itemDisp}"'''
+		return f'''!embed {text}\n!i remove {name}'''
+	if A.get('repair', A.get('r')):
+		target = A.last('t', name)
+		if not target:
+			text = f''' -title "Sorry! We can't find {A.last('t')}!"'''
+			text += f''' -desc "Here are the current combatants!"'''
+			combatDisp = ''
+			for person in c.combatants:
+				combatDisp += f'''{person.name}\n'''
+			text += f''' -f "Current Combatants|{combatDisp}"'''
+		else:
+			C = c.get_combatant(target, strict=False)
+			if not C.note:
+				text = f''' -title "{C.name} has no equipment ready!" -f "They do not have their gear ready for you to work on. They need to add it to the forge's workstation."'''
+				return f'!embed {text}'
+			equipment = load_json(C.note)
+			chosenItem = None
+			reqItem = A.last('i', '&4&')
+			for index, item in enumerate(equipment):
+				if reqItem.lower() in item.lower():
+					chosenItem = item
+					ChosenItem = item
+			if not chosenItem:
+				text = f''' -title "Sorry {name}, but you don't have an item by that name!" -desc "You do not have an item by the name of {reqItem}. Here are your current Items." -f "{bag}|{itemsDisplay}"'''
+				return f'''!embed {text}'''
+			else:	
+				item = chosenItem.split('|')
+				itemHealth = item[1].split('/')
+				itemName = str(item[0])
+				damage=(A.join('d', '+', '').strip('+') if A.get('d') else 1)
+				itemHealthCurrent = int(itemHealth[0])
+				itemHealthMaximum = int(itemHealth[1])			
+				# ROLL STUFF
+				adv = A.adv(boolwise=True)
+				bonus = (A.join('b', '+', '').strip('+') if A.get('b') else '')
+				DC = itemHealthMaximum
+				additionalText = ''
+				if A.get("s", A.get("skill")): 
+					tool = ([x for x,y in ch.skills if A.last("s", A.last("skill")) in x.lower()]+['perception'])[0]
+					minimum_check = A.last('mc', None, int) or (10 if ch.csettings.get("talent", False) and ch.skills[skill].prof else None)
+					r = vroll(ch.skills[tool].d20(adv, minimum_check)+('+' + bonus if bonus else ''))
+					additionalText = f''' -f "Repairing Items Without Tools|Repairing an item takes time, especially when you do not have the correct tools. Items like a whet stone, or carrying extra leather straps can be carried around to make sure your items still work. Using an item like this takes about 15 minutes and restores only 1 DP. You naturally use such an method when you use a skill to repair an item."'''
+				elif A.get("tool"):
+					validTools = ["Alchemist's Supplies", "Brewer's Supplies", "Calligrapher's Supplies", "Carpenter's Tools", "Cartographer's Tools", "Cobbler's Tools", "Disguise Kit", "Forgery Kit", "Herbalism Kit", "Poisoner's Kit", "Cook's Utensils", "Glassblower's Tools", "Jeweler's Tools", "Leatherworker's Tools", "Mason's Tools", "Painter's Supplies", "Potter's Tools", "Smith's Tools", "Tinker's Tools", "Weaver's Tools", "Woodcarver's Tools", "Navigator's Tools", "Thieves' Tools"]
+					for tool in load_json(get_svar('serverTools')):
+						if tool.name not in validTools:
+							validTools += tool.name
+					stats = [i[0].title().replace('ofh', ' of H').replace('handling', ' Handling') for i in character().skills]
+					tool = ([x for x in validTools if A.last('t', A.last("tool")) in x.lower()]+[None])[0]
+					stat = ([x for x in stats if A.last('a') in x.lower()]+[None])[0]
+					additionalText = f''' -f "Repairing An Item With Tools|If you have a set of tools with you, you can repair an item with ease. It takes you about 15 minutes and restores 1d4 DP to the item. When you use `Smith's Tools` to repair the item, it will repair the item using 1d4."'''
+					if not tool or not stat: # Put out the help if missing A
+						return f"""!embed -title '{name} is trying to repair their items' -desc 'You must select a valid skill, or valid tool, attribute, and task DC in the following format:\n`{ctx.prefix}{ctx.alias} repair [-s <skill> | -t <tool> -a <attr> | -sc] [adv|dis] [-b <bonus>]`'"""
+					prof = f'+{2*proficiencyBonus} [expertise]' if (exists('eTools') and tool in eTools) else f'+{proficiencyBonus} [proficient]' if (exists('pTools') and tool in pTools) else f'[Jack of all Trades]' if ch.levels.get('Bard') >= 2 else ''
+					minimum_check = A.last('mc', None, int) or (10 if (ch.csettings.get("talent", False) or A.last('mi10')) else None)
+					r = vroll(ch.skills[stat.lower()].d20(adv, min_val=minimum_check)+(prof if prof else "")+('+' + bonus if bonus else ''))
+				elif A.get('sc', A.get('spellcraft')):
+					tool = 'Spellcraft'
+					spellcraft = character().spellbook.sab if ch.spellbook.sab else int(ch.skills['arcana'])
+					minimum_check = A.last('mc', None, int) or (10 if (ch.csettings.get("talent", False) or A.last('mi10')) else None)
+					r = vroll(["1d20","2d20kh1","2d20kl1"][A.adv()]+(f"mi{minimum_check}" if minimum_check else "")+('+' + spellcraft)+('+' + bonus if bonus else ''))
+					additionalText = f''' -f "Repairing Via Magic|If you try to repair an item via mending, you must know the mending spell. You can then make a spellcheck against the items DC. On a success, your item gains 1d4 DP."'''
+				elif not A.get("t", A.get("tool")) or not A.get("s", A.get("skill")) or not A.get('sc'):
+					text = f""" -title '{name} is trying to repair their items' -desc 'You must select a valid skill, or valid tool, attribute, and task DC in the following format:\n`{ctx.prefix}{ctx.alias} repair [-s <skill> | -t <tool> -a <attr> | -sc] [adv|dis] [-b <bonus>]`'"""
+					return f'''!embed {text}'''
+				if r.total > DC:
+					restore = vroll(f'''{"1d4" if A.get('sc', A.get('spellcraft')) or A.get('tool') else '1d1'}''')
+					itemHealthNew = itemHealthCurrent+restore.total if itemHealthCurrent+restore.total <= itemHealthMaximum else itemHealthMaximum
+					equipment.pop(index-1)
+					equipment.append(f'{itemName}|{itemHealthNew}/{itemHealthMaximum}')
+					C.set_note(dump_json(equipment))
+					text = f''' -title "{name} Repairs a {itemName}!" -f "**DC: {DC}**|{r}\n{itemName}|{itemHealthCurrent}+{restore}/{itemHealthMaximum}" -footer "Success!"'''
+					itemsDisplay = ''
+					for item in equipment:
+						itemsDisplay += f'''{item}\n'''
+					text += f''' -f "Equipment|{itemsDisplay}"'''
+					text += additionalText
+					return f'''!embed {text}'''
+				else:
+					itemsDisplay = ''
+					for item in equipment:
+						itemsDisplay += f'''{item}\n'''
+					text = f''' -title "{name} Tries To Repair Their {itemName}!" -f "**DC: {DC}**|{r}\n{itemName}|{itemHealthCurrent}+0/{itemHealthMaximum}" -footer "Failure!"'''
+					text += f''' -f "Equipment|{itemsDisplay}"'''
+					return f'''!embed {text}'''
+	return f'''!embed {text}'''
+
+</drac2>
